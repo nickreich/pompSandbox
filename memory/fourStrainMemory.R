@@ -32,34 +32,50 @@ createMemory <- function(dat, k, lambda=NULL) {
         firstReps <- rep(c(vec1, vec0), times=memMatrixRows-1)
         last1s <- c(vec1,0)
         memMatrix <- matrix(c(firstReps, last1s), byrow=TRUE, nrow=memMatrixRows)
-        M1 <- memMatrixSelf%*%dat[,1] +  memMatrix%*%dat[,2] + memMatrix%*%dat[,3] + memMatrix%*%dat[,4]  
+        ## strain 1 calculations
+        M1_self <- memMatrixSelf%*%dat[,1] 
+        M1_self <- ( M1_self-mean(M1_self) ) / sd(M1_self)
+        M1 <- memMatrix%*%dat[,2] + memMatrix%*%dat[,3] + memMatrix%*%dat[,4]  
         M1 <- ( M1-mean(M1) ) / sd(M1)
-        M2 <- memMatrix%*%dat[,1] + memMatrixSelf%*%dat[,2] +memMatrix%*%dat[,3] + memMatrix%*%dat[,4]  
+        ## strain 2 calculations
+        M2_self <- memMatrixSelf%*%dat[,2] 
+        M2_self <- ( M2_self-mean(M2_self) ) / sd(M2_self)
+        M2 <- memMatrix%*%dat[,1] + memMatrix%*%dat[,3] + memMatrix%*%dat[,4]  
         M2 <- ( M2-mean(M2) ) / sd(M2)
-        M3 <- memMatrix%*%dat[,1] + memMatrix%*%dat[,2] + memMatrixSelf%*%dat[,3] +memMatrix%*%dat[,4]  
+        ## strain 3 calculations
+        M3_self <- memMatrixSelf%*%dat[,3] 
+        M3_self <- ( M3_self-mean(M3_self) ) / sd(M3_self)
+        M3 <- memMatrix%*%dat[,1] + memMatrix%*%dat[,2] + memMatrix%*%dat[,4]  
         M3 <- ( M3-mean(M3) ) / sd(M3)
-        M4 <- memMatrix%*%dat[,1] + memMatrix%*%dat[,2] + memMatrix%*%dat[,3] + memMatrixSelf%*%dat[,4]
+        ## strain 4 calculations
+        M4_self <- memMatrixSelf%*%dat[,4] 
+        M4_self <- ( M4_self-mean(M4_self) ) / sd(M4_self)
+        M4 <- memMatrix%*%dat[,1] + memMatrix%*%dat[,2] + memMatrix%*%dat[,3]
         M4 <- ( M4-mean(M4) ) / sd(M4)
         
         dataIdx <- (k+1):nrow(dat)
         dat1 <- data.frame(y=dat[dataIdx,1], 
                            yAR = dat[dataIdx-1, 1],
                            M=M1, 
+                           Mself=M1_self,
                            time=1:length(dataIdx),
                            strain=1)
         dat2 <- data.frame(y=dat[dataIdx,2], 
                            yAR = dat[dataIdx-1, 2],
                            M=M2, 
+                           Mself=M2_self,
                            time=1:length(dataIdx),
                            strain=2)
         dat3 <- data.frame(y=dat[dataIdx,3], 
                            yAR = dat[dataIdx-1, 3],
                            M=M3, 
+                           Mself=M3_self,
                            time=1:length(dataIdx),
                            strain=3)
         dat4 <- data.frame(y=dat[dataIdx,4], 
                            yAR = dat[dataIdx-1, 4],
                            M=M4, 
+                           Mself=M4_self,
                            time=1:length(dataIdx),
                            strain=4)
         data <- rbind(dat1, dat2, dat3, dat4)
@@ -72,17 +88,18 @@ runCrossProtectMemoryAnalysis <- function(data, subset=NULL, k, max_lambda, plot
                 data <- data[subset,]
         }
         nLam <- max_lambda+1
-        logLiks <- matrix(NA, ncol=5, nrow=nLam)
-        colnames(logLiks) <- c("k", "lambda", "loglik", "z", "beta_M")
+        logLiks <- matrix(NA, ncol=6, nrow=nLam)
+        colnames(logLiks) <- c("k", "lambda", "loglik", "z", "beta_M", "beta_Mself")
         for(i in 1:nLam){
                 logLiks[i,"k"] <- k
-                lambda <- logLiks[i,"lambda"] <- i-1
+                lambda <- logLiks[i,"lambda"] <- i
                 dat <- createMemory(data, k=k, lambda=lambda)
                 dat$t <- 1:nrow(dat)
-                m1 <- glm(y ~ factor(strain) + log(yAR+1) + M, data=dat, family="poisson")
+                m1 <- glm(y ~ factor(strain) + log(yAR+1) + M + Mself, data=dat, family="poisson")
                 logLiks[i,"z"] <- summary(m1)$coef["M","z value"] #logLik(m1)
                 logLiks[i,"loglik"] <- logLik(m1)
                 logLiks[i,"beta_M"] <- summary(m1)$coef["M","Estimate"]
+                logLiks[i,"beta_Mself"] <- summary(m1)$coef["Mself","Estimate"]
                 if(verbose)
                         message(paste("finished iteration", i, Sys.time()))
         }

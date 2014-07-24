@@ -7,10 +7,10 @@
 # "C:\Program Files\R\R-3.1.0\bin\x64\R.exe" CMD BATCH "C:\Users\Skyler\Documents\RAworks2014_summer\Sangsoo_pompSandbox\memory\sangsoo_Beta_distribution.R" "C:\Users\Skyler\Documents\RAworks2014_summer\Sangsoo_pompSandbox\memory\sangsoo_Beta_distribution.out"
 
 ## preliminaries
-path <- paste0(getwd(),"/memory/",sep="") 
-source(file.path(paste0(path,"fourStrainMemory.R")))
-path_File <- paste0(path, "/simdata_5_local/")
-key <- read.csv(paste0(path,"key_5.csv"))
+setwd('~/Documents/code_versioned/pompSandbox/memory/')
+source('fourStrainMemory.R')
+path_File <- paste0('~/Documents/simdata_5_local/')
+key <- read.csv(paste0(path_File,"key_5.csv"))
 colnames(key)[1] <- "filename"
 
 ## parameters
@@ -36,11 +36,11 @@ results[, 2:4] <- as.matrix(key[file_idx,2:4])
 ######################################################################
 
 require(foreach)
-require(doParallel)
+require(doMC)
 
 nCores <- 2
 cl <- makeCluster(nCores)
-registerDoParallel(cl)
+registerDoMC(cl)
 
 allResults <- list()
 
