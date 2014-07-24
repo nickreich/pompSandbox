@@ -17,7 +17,7 @@ colnames(key)[1] <- "filename"
 k <- 300
 lambda <- 26*4
 
-file_idx <- 1:12000 #c(701:750, 4681:4730, 2911:2934, 2936:2961)
+file_idx <- 1:12000
 n_files <- length(file_idx)
 
 # parameter set for beta distribution
@@ -39,8 +39,7 @@ require(foreach)
 require(doMC)
 
 nCores <- 20
-cl <- makeCluster(nCores)
-registerDoMC(cl)
+registerDoMC(nCores)
 
 allResults <- list()
 
@@ -80,8 +79,6 @@ for (sc in 1:nS){
 
 toc <- Sys.time()
 toc-tic
-
-stopCluster(cl)
 
 final <- rbind(allResults[[1]], allResults[[2]], allResults[[3]])
 write.csv(final, file="Beta_simResults.csv", quote=FALSE, row.names=FALSE)
