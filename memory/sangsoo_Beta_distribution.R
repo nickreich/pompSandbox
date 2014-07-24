@@ -38,7 +38,7 @@ results[, 2:4] <- as.matrix(key[file_idx,2:4])
 require(foreach)
 require(doMC)
 
-nCores <- 2
+nCores <- 20
 cl <- makeCluster(nCores)
 registerDoMC(cl)
 
