@@ -55,11 +55,10 @@ results[, 2:4] <- as.matrix(key[file_idx,2:4])
 ######################################################################
 
 require(foreach)
-require(doParallel)
+require(doMC)
 
 nCores <- 20
-cl <- makeCluster(nCores)
-registerDoParallel(cl)
+registerDoMC(nCores)
 
 allResults <- list()
 
@@ -103,7 +102,6 @@ for (sc in 1:nS){
 toc <- Sys.time()
 toc-tic
 
-stopCluster(cl)
 
 final <- rbind(allResults[[1]], allResults[[2]], allResults[[3]], allResults[[4]], allResults[[5]])
 write.csv(final, file="regres_simResults.csv", quote=FALSE, row.names=FALSE)
