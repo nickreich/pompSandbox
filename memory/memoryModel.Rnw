@@ -21,17 +21,20 @@
 
 \section{Introduction}
 
-MAKE FOCUS MORE GENERAL THAN MULTI-PATHOGEN SYSTEMS, AS PREDICTION COULD BE DONE WITH A SINGLE STRAIN!
-
 In some infectious disease settings, multiple different pathogens or multiple strains of a single pathogen compete to infect susceptible individuals in a population. This competition can drive systems into complex and chaotic observed dynamics. Observed data from these multi-pathogen systems has proved difficult to analyze effectively and efficiently, due in large part to the complexity of the interactions between pathogens. 
 
-Complex mechanistic models of disease systems require computationally intensive algorithms to fit to real data, and can have prohibitively long computation time [cite sourya]. Simpler more phenomenological models for the disease process can often be fitted to data using less intensive statistical methods. But these simple methods may suffer from bias (since the disease model may not be accurately specified) and may not appropriately account for all of the uncertainty and noise in the disease system. Finding the right balance of model complexity so that these models are conceptually and computationally tractable while remaining faithful to the biological system in question is an important area of research in this field and others that generate multivariate time series data.
+Complex mechanistic models of disease systems require computationally intensive algorithms to fit to real data, and can have prohibitively long computation time [cite sourya]. Simpler more phenomenological models for the disease process can often be fitted to data using less intensive statistical methods. But these simple methods may suffer from bias (since the disease model may not be accurately specified) and may not appropriately account for all of the uncertainty and noise in the disease system. Finding the right balance of model complexity so that these models are conceptually and computationally tractable while remaining faithful to the biological system in question is an area of research that remains largely unexplored. Work in this area could have a large impact in infectious disease modeling research and potentially in other fields that generate multivariate time series data with complex interactions.
 
 One prominent example of a multi-pathogen disease system is dengue fever, a mosquito-borne arbovirus that infects an estimated 400 million individuals worldwide each year [TSIR 9]. The dengue virus has four identifiable serotypes. Infection with one serotype is thought to confer permanent immunity to that serotype and temporary cross-protection against infection with other serotypes.[Sabin 1952, Reich 2013] However after this temporary protection wanes, individuals are thought to be at increased risk of severe disease when infected with a different serotype.[burke et al 1988] In recent years there has been a substantial increased interest in using infectious disease models to understand interactions between pathogens. [TSIR grant citations: 15,16,22-28] Some of this research on the dynamics of dengue in different geographical locations has demonstrated that complex dynamics observed in data are consistent with the presence of cross-protection and immune enhancement [more citations].  However, very few research teams have used data to explicitly estimate characteristics such as cross-protection or immune enhancement. 
 
-It is in this context that we propose some new methodological tools that may be used to create computationally tractable and biologically realistic models for both prediction and inference. A central challenge in these types of infectious disease model is accurately modeling the (largely unobservable) changes in the population of individuals who are susceptible to a disease. Some methods attempt to estimate the susceptible fraction of a population at $t_0$ by including it as a paramter of the model [cite]. Especially in multi-pathogen systems, this approach has been shown to lead to computational instability. Our method introduces a new approach to approximating the susceptible population over time based on observed data. This method provides an easy if crude way to include complex dynamics in otherwise simple models. 
 
-To demonstrate the utility and flexibility of this new approach, we have applied this method to answer two distinct but related scientific questions. First, we use this method to improve prediction of dengue incidence. Second, we use the method to assist in drawing inference about whether short-term cross-protection exists between pathogens in a four-pathogen system, such as dengue fever. 
+It is in this context that we propose a new methodological tool that may be used to create computationally tractable and biologically realistic models for both prediction and inference. A central challenge in these types of infectious disease model is accurately modeling the (largely unobservable) changes in the population of individuals who are susceptible to a disease. Some methods attempt to estimate the susceptible fraction of a population at $t_0$ by including it as a parameter of the model [cite]. While this approach has been successful in models of single- and dual-pathogen systems [cite Weitz paper, one of Sourya's other papers?], it has not been successfully applied in multi-pathogen settings [cite Plos comp bio]. Our method introduces a new approach to approximating the susceptible population over time based on observed data. In brief, it uses standardized weighted sums of prior case counts (a.k.a. ``memory terms'') for all serotypes as an approximation to deviations from mean susceptibility. This method provides an easy but crude way to include complex dynamics in otherwise simple models. 
+
+As proof of principle, we have applied this method to assist in drawing inference about whether short-term cross-protection exists between pathogens in a four-pathogen system, such as dengue fever. Our team has used this data previously to estimate explicitly the duration of cross-protection between serotypes of dengue fever. Where the methods used in that work were designed to be able to provide more high-resolution inference, the method presented here is designed as to quickly answer ``first-order'' questions about a system. For example, ``do these data show evidence of cross-protection?'' is a question that should require less detailed information about a system than trying to estimate explicitly the duration of short-term cross-protection.
+
+This ``memory term'' method is by nature low-resolution, and in providing a very fast answer to a complex scientific question may sacrifice some accuracy. Using detailed simulations, we explored the performance of this method in different, realistic scenarios where data were under-reported.
+
+This manuscript was typeset reproducibly using R $\Sexpr{paste0(R.version()$major, ".",R.version()$major)}$ and the {\tt knitr} package.
 
 \section{A statistical framework for infectious disease time-series data}
 
@@ -80,29 +83,32 @@ Then, we can standardize the $M$ terms as
 $$M^*_{i,t} = \frac{M_{i,t} - \bar M_i}{sd(M_{i,t})}.$$
 And these $M^*$ terms could be used in the above model. Assuming that a Poisson model is fit, we could interpret $e^{\gamma^*}$ as the relative rate between two timepoints that have the same $X_{i,t-1}$ value but where one point has 1 standard deviation greater measure of susceptibility.
 
-\section{Using memory terms to enhance prediction models}
-
-\subsection{prediction of dengue (non-serotype specific data)}
-
-
-
 \section{Using memory terms to detect cross-protection}
 
 \subsection{Cross-protection between serotypes of dengue}
-
-CONSIDER SUBSETTING DATA TO HAVE LESS VARYING REPORTING RATES OVER TIME.
 
 <<echo=FALSE, message=FALSE>>=
 source('fourStrainMemory.R')
 @
 
+We use an updated version of the dataset previously described in Reich et al. (2013). This dataset contains serotype-specific biweekly case counts of dengue fever reported by the Queen Sirikit National Institute of Children’s Health in Bangkok, Thailand. The dataset includes XXX cases from 1973 through 20XX. Over this timespan, the laboratory methods changed, most notably in 1981 and 1995 [cite nisalak?]. The data are shown in Figure \ref{fig:data}.
 
-<<dengue, echo=FALSE, fig.cap="Likelihood profile for $\\theta$ in the four-serotype dengue model.", message=FALSE>>=
-## run Dengue analysis
+<<loadData, message=FALSE>>=
+## NEED TO DO BIWEEK INTERPOLATION WITH NEW DATA.
 load("/Users/nick/Dropbox/work/research/dengueCrossProtection/data/bkk.dengue.cases.new.rda")
 dengue_data <- bkk.dengue.cases[,3:6]
 dengue_data[which(dengue_data<0, arr.ind=TRUE)] <- 0 ## remove negative values
-tmp <- runCrossProtectMemoryAnalysis(data=dengue_data, k=300, 
+@
+
+<<plotData>>=
+## to come
+@
+
+
+
+<<dengueModel, echo=FALSE, fig.cap="Likelihood profile for $\\theta$ in the four-serotype dengue model.", message=FALSE>>=
+## run Dengue analysis
+tmp <- runCrossProtectMemoryAnalysis(data=dengue_data[300:nrow(dengue_data),]*100, k=300, 
                                      max_lambda=26*6, 
                                      plot=TRUE, verbose=FALSE)
 @
@@ -166,5 +172,8 @@ tmp <- runCrossProtectMemoryAnalysis(data=rsv_data_subset, k=120,
                                      max_lambda=100, 
                                      plot=TRUE, verbose=FALSE)
 @
+
+\section{Discussion}
+We report here results showing the utility of this method for answering simple questions about characteristics that drive the complex dynamics of this system. However, it is possible that memory terms could be used in a wide array of other infectious disease and other modeling contexts.
 
 \end{document}
