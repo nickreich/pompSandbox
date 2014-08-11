@@ -108,7 +108,8 @@ dengue_data[which(dengue_data<0, arr.ind=TRUE)] <- 0 ## remove negative values
 
 <<dengueModel, echo=FALSE, fig.cap="Likelihood profile for $\\theta$ in the four-serotype dengue model.", message=FALSE>>=
 ## run Dengue analysis
-tmp <- runCrossProtectMemoryAnalysis(data=dengue_data[300:nrow(dengue_data),]*100, k=300, 
+tmp <- runCrossProtectMemoryAnalysis(data=dengue_data[bkk.dengue.cases$date>1985,], 
+                                     k=300, 
                                      max_lambda=26*6, 
                                      plot=TRUE, verbose=FALSE)
 @
