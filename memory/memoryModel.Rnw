@@ -28,13 +28,13 @@ Complex mechanistic models of disease systems require computationally intensive 
 One prominent example of a multi-pathogen disease system is dengue fever, a mosquito-borne arbovirus that infects an estimated 400 million individuals worldwide each year [TSIR 9]. The dengue virus has four identifiable serotypes. Infection with one serotype is thought to confer permanent immunity to that serotype and temporary cross-protection against infection with other serotypes.[Sabin 1952, Reich 2013] However after this temporary protection wanes, individuals are thought to be at increased risk of severe disease when infected with a different serotype.[burke et al 1988] In recent years there has been a substantial increased interest in using infectious disease models to understand interactions between pathogens. [TSIR grant citations: 15,16,22-28] Some of this research on the dynamics of dengue in different geographical locations has demonstrated that complex dynamics observed in data are consistent with the presence of cross-protection and immune enhancement [more citations].  However, very few research teams have used data to explicitly estimate characteristics such as cross-protection or immune enhancement. 
 
 
-It is in this context that we propose a new methodological tool that may be used to create computationally tractable and biologically realistic models for both prediction and inference. A central challenge in these types of infectious disease model is accurately modeling the (largely unobservable) changes in the population of individuals who are susceptible to a disease. Some methods attempt to estimate the susceptible fraction of a population at $t_0$ by including it as a parameter of the model [cite]. While this approach has been successful in models of single- and dual-pathogen systems [cite Weitz paper, one of Sourya's other papers?], it has not been successfully applied in multi-pathogen settings [cite Plos comp bio]. Our method introduces a new approach to approximating the susceptible population over time based on observed data. In brief, it uses standardized weighted sums of prior case counts (a.k.a. ``memory terms'') for all serotypes as an approximation to deviations from mean susceptibility. This method provides an easy but crude way to include complex dynamics in otherwise simple models. 
+It is in this context that we propose a new methodological tool that may be used to create computationally tractable and biologically realistic models for both prediction and inference. A central challenge in these types of infectious disease model is accurately modeling the (largely unobservable) changes in the population of individuals who are susceptible to a disease. Some methods attempt to estimate the susceptible fraction of a population at $t_0$ by including it as a parameter of the model [cite]. While this approach has been successful in models of single- and dual-pathogen systems [cite Weitz paper, one of Sourya's other papers?], it has not been successfully applied in multi-pathogen settings [cite Plos comp bio]. Our method introduces a new approach to approximating the susceptible population over time based on observed data. In brief, it uses standardized weighted sums of prior case counts (a.k.a. ``memory terms'', since they retain a memory of recent level of relevant infections) for all serotypes as an approximation to deviations from mean susceptibility. This method provides a simple but crude way to include complex dynamics in otherwise simple models. 
 
-As proof of principle, we have applied this method to assist in drawing inference about whether short-term cross-protection exists between pathogens in a four-pathogen system, such as dengue fever. Our team has used this data previously to estimate explicitly the duration of cross-protection between serotypes of dengue fever. Where the methods used in that work were designed to be able to provide more high-resolution inference, the method presented here is designed as to quickly answer ``first-order'' questions about a system. For example, ``do these data show evidence of cross-protection?'' is a question that should require less detailed information about a system than trying to estimate explicitly the duration of short-term cross-protection.
+As proof of principle, we have applied this method to assist in drawing inference about whether short-term cross-protection exists between pathogens in a four-pathogen system, such as dengue fever. Our team has used this data previously to estimate explicitly the duration of cross-protection between serotypes of dengue fever. Where the methods used in that work were designed to be able to provide more high-resolution inference, the method presented here is designed to quickly answer ``first-order'' questions about a system. For example, ``do these data show evidence of cross-protection?'' is a question that should require less detailed information about a system than trying to estimate explicitly the duration of short-term cross-protection.
 
 This ``memory term'' method is by nature low-resolution, and in providing a very fast answer to a complex scientific question may sacrifice some accuracy. Using detailed simulations, we explored the performance of this method in different, realistic scenarios where data were under-reported.
 
-This manuscript was typeset reproducibly using R $\Sexpr{paste0(R.version()$major, ".",R.version()$major)}$ and the {\tt knitr} package.
+This manuscript was typeset reproducibly using R $\Sexpr{paste0(R.version$major, ".",R.version$minor)}$ and the {\tt knitr} package.
 
 \section{A statistical framework for infectious disease time-series data}
 
@@ -89,30 +89,35 @@ And these $M^*$ terms could be used in the above model. Assuming that a Poisson 
 
 <<echo=FALSE, message=FALSE>>=
 source('fourStrainMemory.R')
+library(reshape2)
+library(ggplot2)
+library(dplyr)
 @
 
 We use an updated version of the dataset previously described in Reich et al. (2013). This dataset contains serotype-specific biweekly case counts of dengue fever reported by the Queen Sirikit National Institute of Children’s Health in Bangkok, Thailand. The dataset includes XXX cases from 1973 through 20XX. Over this timespan, the laboratory methods changed, most notably in 1981 and 1995 [cite nisalak?]. The data are shown in Figure \ref{fig:data}.
 
 <<loadData, message=FALSE>>=
-## NEED TO DO BIWEEK INTERPOLATION WITH NEW DATA.
-load("/Users/nick/Dropbox/work/research/dengueCrossProtection/data/bkk.dengue.cases.new.rda")
-dengue_data <- bkk.dengue.cases[,3:6]
-dengue_data[which(dengue_data<0, arr.ind=TRUE)] <- 0 ## remove negative values
+dengue_data <- readRDS("new_QS_case_data_1973_2012.rds")
+ready_data <- tbl_df(dcast(dengue_data, 
+                           date + year + date_sick_biweek ~ serotype, 
+                           value.var="cases"))
 @
 
-<<plotData>>=
-## to come
+<<plotData, fig.cap='Case counts of dengue fever at Queen Sirikit National Child Institute of Health in Bangkok, Thailand, by dengue serotype, from 1973 through 2012.'>>=
+qplot(date, ymax=cases, ymin=0, geom="linerange", data=dengue_data, 
+      facets=serotype~.)
 @
 
 
 
 <<dengueModel, echo=FALSE, fig.cap="Likelihood profile for $\\theta$ in the four-serotype dengue model.", message=FALSE>>=
 ## run Dengue analysis
-tmp <- runCrossProtectMemoryAnalysis(data=dengue_data[bkk.dengue.cases$date>1985,], 
+tmp <- runCrossProtectMemoryAnalysis(data=ready_data[ready_data$date>1985, 4:7], 
                                      k=300, 
                                      max_lambda=26*6, 
                                      plot=TRUE, verbose=FALSE)
 @
+
 I fit the model above, to the four-serotype dengue dataset from Queen Sirikit. Using $k$=300 and setting $\theta$ to be at most six years (156 biweeks), we find that the $\hat\theta = $\Sexpr{round(tmp["lambda"])} biweeks, with a 95\% CI of (\Sexpr{round(tmp["lambda_ci_low"])}, \Sexpr{round(tmp["lambda_ci_high"])}). Overall, there is not strong evidence for cross-protection based on this analysis. Although we do not have a measure of this algorithm's performance when reporting rates are changing, as our method may rely on fairly consistent reporting over time. Figure \ref{fig:dengue} shows the likelihood profile across examined values of $\theta$. The curvature seems dramatic, but the absolute magnitude changes are quite small.
 
 

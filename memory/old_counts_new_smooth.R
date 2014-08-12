@@ -81,11 +81,14 @@ biweek_count_data <- base %>%
 
 #qplot(date, ymax=cases, ymin=0, geom="linerange", data=biweek_count_data, facets=serotype~.)
 
+saveRDS(biweek_count_data, file="new_QS_case_data_1973_2012.rds")
+
 
 ## make wide data
 ready_data <- tbl_df(dcast(biweek_count_data, 
                            date + year + date_sick_biweek ~ serotype, 
                            value.var="cases"))
+
 
 
 runCrossProtectMemoryAnalysis(data=ready_data[ready_data$date>1990, 4:7], 
