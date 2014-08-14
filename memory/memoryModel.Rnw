@@ -4,12 +4,13 @@
 \usepackage{graphicx}
 \usepackage{amssymb,amsmath, bm}
 \geometry{letterpaper, top=1in, left=1in, right=1in, bottom=1in} % to set margins
+\usepackage{hyperref}
 
 \usepackage{setspace}
 \onehalfspacing
 
 \title{Modeling susceptibility in infectious disease systems with a ``memory'' term}
-\author{Nicholas G Reich, Krzysztof Sakrejda,  \\ Hannah Clapham, Sourya Srestha, Derek A T Cummings}
+\author{Nicholas G Reich, Krzysztof Sakrejda,  Sangsoo Park, \\ Hannah Clapham, Sourya Srestha, Derek A T Cummings}
 
 
 %%% BEGIN DOCUMENT
@@ -36,14 +37,12 @@ This ``memory term'' method is by nature low-resolution, and in providing a very
 
 This manuscript was typeset reproducibly using R $\Sexpr{paste0(R.version$major, ".",R.version$minor)}$ and the {\tt knitr} package.
 
-\section{A statistical framework for infectious disease time-series data}
-
-\subsection{A single-pathogen transmission model}
+\section{A statistical framework for multi-pathogen time-series data}
 
 \subsection{A multi-pathogen transmission model}
 We specify a model for a multivariate time series, measured in discrete time units. Each time series, representing case counts for a particular disease, is represented by $Y_{i,t}$, the number of incident observed cases of disease $i$ within a particular time window $t$. Furthermore, $X_{i,t}$ are the total number of incident cases (both reported and unreported) in time $t$. The theoretical transmission model (adapted from Finkenstadt and Grenfell) could be written as
 \begin{equation}
-X_{i,t} = \beta_t \cdot X_{i,t-1}^{\alpha_1} \cdot S_{i,t-1}^{\alpha_2}
+X_{i,t} = \beta_t \cdot X_{i,t-1}^{\alpha_1} \cdot S_{i,t-1}^{\alpha_2} \label{eq:transMod}
 \end{equation}
 where $S_{i,t}$ is the number of susceptible individuals to disease $i$ at time $t$ and 
 % lifted from supplemental materials of JRSI paper
@@ -56,77 +55,56 @@ The $\alpha$ are mixing parameters, which, if both equal 1, define a population 
 
 Therefore, a statistical formulation of the theoretical transmission model could be written as
 \begin{eqnarray}
-\log {\mathbb E}[ X_{i,t}|X_{\cdot,t-1}, S_{i,t-1}] & = & \log\beta_t + \alpha_1 \log X_{i,t-1} + \alpha_2 \log S_{i,t-1}
+\log {\mathbb E}[ X_{i,t}|X_{\cdot,t-1}, S_{i,t-1}] & = & \log\beta_t + \alpha_1 \log X_{i,t-1} + \alpha_2 \log S_{i,t-1} \label{eq:statModel}
 \end{eqnarray}
-where the $\beta_t$ coefficients represent the seasonal baselines, i.e. $\beta_t = \beta_{t \mod 26}$ if our timestep is biweeks. We intentionally leave the distributional assumption for $X_{i,t}$ unspecified for now, although it commonly might be specified as Poisson or Negative Binomial.
+where the $\beta_t$ coefficients represent the seasonal baselines, i.e. $\beta_t = \beta_{t \mod 26}$ if our timestep is biweeks. We intentionally leave the distributional assumption for $X_{i,t}$ unspecified for now, although it commonly might be specified as Poisson or Negative Binomial. This model is in a form that would lend itself to being fit with standard methods for generalized linear models (GLMs). However, two components of this model, the $X_{i,t}$ and the $S_{i,t}$, are unobserved.  
 
+For the purposes of developing a simple model to demonstrate the proof-of-principle for our new susceptible approximation, we largely ignore the reporting process and assume that $Y_{i,t}$ can be used in place of $X_{i,t}$. This is equivalent to assuming that all cases are reported (an unrealistic, but simplifying assumption) or to assuming that not all cases are reported but the reporting rate is constant across time. In the latter of these two assumptions, the reporting rate would cancel out on both sides of equation \ref{eq:transMod}.
 
+Setting aside the complexities associated with an observation process or reporting model, we focus our attention on developing an approximation to $S_{i,t}$.
 
 \subsection{An approximation to susceptibility}
-In their seminal paper, Finkenstadt and Grenfell used a Taylor series expansion to approximate the susceptible counts at each time step and to estimate the reporting fractions. Here, we propose an alternate approximation to the susceptible counts for each strain. We could say that 
+A measure of susceptibility provides a crucial building block in modeling infectious disease dynamics. Low levels of population susceptibility -- due to, for example high vaccination rates or high rates of prior exposure -- make it harder for outbreak to rapidly spread through a population. Varying levels of population susceptibility have been showed to drive disease dynamics in strange ways. For example, in a seminal paper on modeling infectious disease time-series data, Finkenstadt and Grenfell showed evidence that the sharp increase in birth rates after World War II (i.e. the baby boom) drove childhood measles in the UK from a pattern of annual outbreaks into twice-yearly outbreaks. [cite F and G]
+
+Finkenst\:adt and Grenfell had developed a novel model for estimating both reporting rates and the susceptible fraction of the population. Specifically, they used a Taylor series expansion to approximate the susceptible counts at each time step. Here, we propose an alternate approximation to the susceptible counts for each strain. We can write the count of susceptible individuals to disease $i$ at time $t$ as
 \begin{equation}
 S_{i,t} = \bar S_i \cdot \exp (\gamma M^*_{i,t})
 \end{equation}
-where $M^*_{i,t}$ is a continuous measure that acts (when exponentiated) as a scaling factor on the mean susceptibility to a particular strain, and $\gamma$ is a coefficient. The model equation then becomes:
+where $M^*_{i,t}$ is a continuous measure that acts (when exponentiated) as a scaling factor on the mean susceptibility to a particular strain ($\bar S_i$), and $\gamma$ is a coefficient. In other words, values of $\gamma \cdot M^*$ that are greater than zero would indicate higher than average population susceptibility, and vice versa. The model equation \ref{eq:statModel} then becomes:
 \begin{eqnarray}
-\log {\mathbb E}[ X_{i,t}|X_{\cdot,t-1}, S_{i,t-1}] & = & \log\beta_t + \alpha_1 \log X_{i,t-1} + \alpha_2 \left( \log \bar S_{i} + \gamma M^*_{i,t} \right )\\
- & = & \log\beta_t + \alpha_1 \log X_{i,t-1} + \alpha_2 \log \bar S_{i} + \gamma^* M^*_{i,t}
+\log {\mathbb E}[ X_{i,t}|X_{\cdot,t-1}, S_{i,t-1}] & = & \log\beta_t + \alpha_1 \log X_{i,t-1} + \alpha_2 \left( \log \bar S_{i} + \gamma M^*_{i,t} \right ) \nonumber \\
+ & = & \log\beta_t + \alpha_1 \log X_{i,t-1} + \alpha_2 \log \bar S_{i} + \gamma^* M^*_{i,t} \label{eq:fitModel}
 \end{eqnarray}
-If we can find, then, an appropriate metric for $M^*$, the above model should not be terribly difficult to fit.
+If we can define an appropriate metric for $M^*$ and use the reported counts in place of the $X_{i,t}$, the above model could be fit using a standard GLM algorithm.
 
-To start, we might assume that $M^*$ takes the form of a ``memory term'' that for a particular strain $i$ has two components (1) a sum of recent previous cases from strain $i$, representing recent additions to the susceptible class,  and (2) a weighted sum of prior cases of other strains, representing the current balance of those cross-protected from other strains. Assume that cases become cross-protected upon infection with other strains and leave the cross-protected pool at an exponential rate, $\theta$.  One definition of $M$ could be as follows. For a fixed $k$ (a duration into the past that we sum the prior cases) and $\theta$:
+To start, we might assume that $M^*$ takes the form of a ``memory term'' that for a particular strain $i$ has two components (1) a sum of recent previous cases from strain $i$, representing recent additions to the susceptible class,  and (2) a weighted sum of prior cases of other strains, representing the current balance of those cross-protected from other strains. Assume that cases become cross-protected upon infection with other strains and leave the cross-protected pool at an exponential rate, $\theta$. (This is similar to previous assumptions made about the process of cross-protection.[cite Reich])  One definition of a memory term, $M$, follows. For a fixed $k$ (a duration into the past that we sum the prior cases) and $\theta$:
 \begin{eqnarray*}
-M_{i,t}&=& \sum_{t-k < t'< t} X_{i,t'} + \sum_{j \neq i} \sum_{t-k < t'< t} X_{j,t'}\cdot \mbox{Pr(case infected at $t'$ still protected at time $t$)} \\ 
-&=&\sum_{t-k < t'< t} X_{i,t'} +  \sum_{j \neq i}  \sum_{t-k < t'< t} X_{j,t'}\cdot e^{-\theta (t-t')}.
+M_{i,t}&=& \sum_{t-k < t'< t} X_{i,t'} + \sum_{j \neq i} \sum_{t-k < t'< t} X_{j,t'}\cdot \mbox{Pr(case infected at $t'$ still protected at time $t$)} \nonumber  \\ 
+&=&\sum_{t-k < t'< t} X_{i,t'} +  \sum_{j \neq i}  \sum_{t-k < t'< t} X_{j,t'}\cdot e^{-\theta (t-t')}.\nonumber
 \end{eqnarray*}
 Then, we can standardize the $M$ terms as 
 $$M^*_{i,t} = \frac{M_{i,t} - \bar M_i}{sd(M_{i,t})}.$$
-And these $M^*$ terms could be used in the above model. Assuming that a Poisson model is fit, we could interpret $e^{\gamma^*}$ as the relative rate between two timepoints that have the same $X_{i,t-1}$ value but where one point has 1 standard deviation greater measure of susceptibility.
+These $M^*$ terms could be used in the above model. Note that the $M^*$ depend on the parameter of the exponential distribution, $\theta$. For a fixed $\theta$, we can fit a Poisson GLM to the model in equation \ref{eq:fitModel}. To derive an estimate for the $\theta$ most supported by the data, we could use a grid-search algorithm, that computes the memory terms and fits the model for a range of possible values of $\theta$. This would construct a profile likelihood that could be used to determine the maximum likelihood and a likelihood based confidence interval. Additionally,  we could interpret $e^{\gamma^*}$ as the relative rate between two timepoints that have the same $X_{i,t-1}$ value but where one point has 1 standard deviation greater measure of susceptibility.
+
+
 
 \section{Using memory terms to detect cross-protection}
 
-\subsection{Cross-protection between serotypes of dengue}
+To demonstrate that these memory terms can be effectively used in an infectious disease modeling context, we applied the method described above to classify datasets as either showing evidence of being generated from a system with cross-protection or not. We did this in two contexts. First, we analyzed simulated datasets to provide results across a range of different durations of cross-protection and quantities of data. Second, we analyzed a real four-serotype time-series of case counts of dengue fever from Bangkok, Thailand.
 
-<<echo=FALSE, message=FALSE>>=
-source('fourStrainMemory.R')
-library(reshape2)
-library(ggplot2)
-library(dplyr)
-@
-
-We use an updated version of the dataset previously described in Reich et al. (2013). This dataset contains serotype-specific biweekly case counts of dengue fever reported by the Queen Sirikit National Institute of Children’s Health in Bangkok, Thailand. The dataset includes XXX cases from 1973 through 20XX. Over this timespan, the laboratory methods changed, most notably in 1981 and 1995 [cite nisalak?]. The data are shown in Figure \ref{fig:data}.
-
-<<loadData, message=FALSE>>=
-dengue_data <- readRDS("new_QS_case_data_1973_2012.rds")
-ready_data <- tbl_df(dcast(dengue_data, 
-                           date + year + date_sick_biweek ~ serotype, 
-                           value.var="cases"))
-@
-
-<<plotData, fig.cap='Case counts of dengue fever at Queen Sirikit National Child Institute of Health in Bangkok, Thailand, by dengue serotype, from 1973 through 2012.'>>=
-qplot(date, ymax=cases, ymin=0, geom="linerange", data=dengue_data, 
-      facets=serotype~.)
-@
-
-
-
-<<dengueModel, echo=FALSE, fig.cap="Likelihood profile for $\\theta$ in the four-serotype dengue model.", message=FALSE>>=
-## run Dengue analysis
-tmp <- runCrossProtectMemoryAnalysis(data=ready_data[ready_data$date>1985, 4:7], 
-                                     k=300, 
-                                     max_lambda=26*6, 
-                                     plot=TRUE, verbose=FALSE)
-@
-
-I fit the model above, to the four-serotype dengue dataset from Queen Sirikit. Using $k$=300 and setting $\theta$ to be at most six years (156 biweeks), we find that the $\hat\theta = $\Sexpr{round(tmp["lambda"])} biweeks, with a 95\% CI of (\Sexpr{round(tmp["lambda_ci_low"])}, \Sexpr{round(tmp["lambda_ci_high"])}). Overall, there is not strong evidence for cross-protection based on this analysis. Although we do not have a measure of this algorithm's performance when reporting rates are changing, as our method may rely on fairly consistent reporting over time. Figure \ref{fig:dengue} shows the likelihood profile across examined values of $\theta$. The curvature seems dramatic, but the absolute magnitude changes are quite small.
-
-
-\subsection{Simulated data with pathogen interactions}
-I analyzed 12000 simulated datasets from a four-strain model with 2000 datasets at each of 6 different levels of cross-protection. The model fit to the data was 
+In both settings, the model fit to the data was 
 \begin{eqnarray}
-X_{i,t} &\sim & Poisson(\lambda_{i,t})\\
-\log \lambda_{i,t} &=& \beta_{1,i} + \beta_2 \log (X_{i,t-1}+1) + \beta_3 M^*_{i,t}
+X_{i,t}|\theta, \lambda_{i,t}, k &\sim & Poisson(\lambda_{i,t}|\theta, k) \nonumber \\
+\log \lambda_{i,t} &=& \beta_{1,i} + \beta_2 \log (X_{i,t-1}+1) + \beta_3 M(\theta, k)^*_{i,t}
 \end{eqnarray}
+where the $X_{i,t}$ are taken as the observed case counts, and the $\theta$ and $k$ parameters are defined as above. The model was fit using the profile-likelihood approach described above, by iteratively fitting a Poisson glm for each value of $\theta$ considered. The code for the data analysis and simulations are available \href{https://github.com/nickreich/pompSandbox/tree/master/memory}{on GitHub}.
+
+\subsection{Analyzing simulated data with pathogen interactions}
+
+From previous work[cite Reich], we have 12,000 simulated datasets from a continuous-time four-strain model across 40 years of biweekly observations. These 12,000 datasets have a factorial design, with 2,000 datasets generated with each of 6 different durations of cross-protection (none, 6 months, 1 year, 1.5 years, 2 years, 3 years) and 6,000 datasets generated with each of 2 different case reporting rates (0.01 and 0.1). Details of these validation datasets have been published elsewhere [cite Reich]. The datasets with reporting rate of 1 in 100 have a mean number of total cases per dataset of about 200,000. The datasets with reporting rate of 1 in 10 have a mean number of total cases per dataset of about 2 million. %Our actual dataset, therefore, corresponds roughly to a simulated dataset from this system with reporting rate of 1 in 1,000 or 0.001.  
+
+To test the sensitivity of the proposed method, we ran several experiments using these simulated datasets. In particular, we were interested in evaluating how well this memory model method can detect the existence of cross-protection. We say that the method "detects" cross-protection in a dataset if the 95\% confidence interval for $\theta$ does not cover zero. Using the simulated datasets, we can evaluate the sensitivity and specificity of this method in detecting cross-protection. Specifically, we would like to evaluate this method's performance in across a range of different reporting rates (i.e. at different scales of case counts in the data set) and when the reporting rates are changing across time.
+
 
 I fit the model above for a fixed $k=300$ and for $\theta = 1, 2, ..., 104$ (i.e. for cross-protection values of up to 4 years). For each sequence of 104 models, across the different values of $\theta$, the model with the highest log-likelhood value was chosen and the results reported here.
 
@@ -160,18 +138,61 @@ require(xtable)
 xtable(presentTable, caption="Percent of datasets classified as having cross-protection (TRUE) or not (FALSE), by the true duration of cross-protection.", digits=1, label="tab:present")
 @
 
+\subsection{Cross-protection between serotypes of dengue}
 
-\subsection{Cross-protection between common respiratory pathogens}
-We have a decade's worth of data on common respiratory pathogens from a pediatric hospital in the US. Using this data, I fit the model above to the time series of cases from subsets of the following pathogens influenza A, influenza B, RSV, adenovirus, rhinovirus, parainfluenza, and enterovirus. Some things to note:
-\begin{itemize}
-\item We might expect to pick up more spurious associations with these data on different pathogens if external factors drive these pathogens into different/shifted seasonal patterns. Our algorithm might pick up different seasonal patterns as evidence of cross-protection. A simulation study could test this out. Enterovirus might be a good example of this, as there might not be a strong biological explanation for why there would be interference between it and a respiratory pathogen.
-\item In general, we might expect the duration of cross-protection/interference to be shorter between these viruses, and this dataset is shorter than the others, so we have set $k=120$ and $\theta=100$.
-\item Still to do: generalize code to be able to look at different numbers of interacting pathogens.
-\item to investigate: impact of changing reporting rates over time on the ability of this metric to detect cross-protection.
-\end{itemize}
+<<echo=FALSE, message=FALSE>>=
+source('fourStrainMemory.R')
+library(reshape2)
+library(ggplot2)
+library(dplyr)
+@
 
 
-<<echo=FALSE, fig.cap="Likelihood profile for $\\theta$ in a model for RSV, flu A, flu B, and parainfluenza.", message=FALSE>>=
+<<loadData, message=FALSE, echo=FALSE>>=
+dengue_data <- readRDS("new_QS_case_data_1973_2012.rds")
+ready_data <- tbl_df(dcast(dengue_data, 
+                           date + year + date_sick_biweek ~ serotype, 
+                           value.var="cases"))
+@
+
+
+We use an updated version of the dataset previously described in Reich et al. (2013). This dataset contains serotype-specific biweekly case counts of dengue fever reported by the Queen Sirikit National Institute of Children’s Health in Bangkok, Thailand. The dataset includes 12,662 serotyped cases from 1974 through 2012. The cases are categorized by month. Using a monotonically increasing cubic spline on the cumulative case counts for each serotype, we interpolated the biweekly case counts for each serotype across these years. Over this timespan, the laboratory methods changed, most notably in 1981 and 1995 [cite nisalak?]. The data are shown in Figure \ref{fig:data}. The maximum number of cases observed per biweek ranged between 10 and 37 across the different serotypes.
+
+
+<<plotData, echo=FALSE, fig.cap='Case counts of dengue fever at Queen Sirikit National Child Institute of Health in Bangkok, Thailand, by dengue serotype, from 1973 through 2012.', fig.height=4>>=
+qplot(date, ymax=cases, ymin=0, geom="linerange", data=dengue_data, 
+      facets=serotype~.)
+@
+
+
+
+<<dengueModel, echo=FALSE, fig.cap="Likelihood profile for $\\theta$ in the four-serotype dengue model.", message=FALSE, fig.height=3>>=
+## run Dengue analysis
+k <- 300
+max_theta <- 6
+tmp <- runCrossProtectMemoryAnalysis(data=ready_data[ready_data$date>1985, 4:7], 
+                                     k=k, 
+                                     max_lambda=26*max_theta, 
+                                     plot=TRUE, verbose=FALSE)
+@
+
+We fitted the model from equation \ref{eq:fitModel} above, to the four-serotype dengue dataset from Queen Sirikit. Using $k$=\Sexpr{k} and setting $\theta$ to be at most \Sexpr{max_theta} years (\Sexpr{max_theta*26} biweeks), we find that the maximum likelihood estimate for the duration of cross-protection is $\hat\theta = $\Sexpr{round(tmp["lambda"])} biweeks, with a 95\% CI of (\Sexpr{round(tmp["lambda_ci_low"])}, \Sexpr{round(tmp["lambda_ci_high"])}). Overall, there is not strong evidence for cross-protection based on this analysis. Figure \ref{fig:dengue} shows the likelihood profile across examined values of $\theta$. 
+
+
+
+
+
+% \subsection{Cross-protection between common respiratory pathogens}
+% We have a decade's worth of data on common respiratory pathogens from a pediatric hospital in the US. Using this data, I fit the model above to the time series of cases from subsets of the following pathogens influenza A, influenza B, RSV, adenovirus, rhinovirus, parainfluenza, and enterovirus. Some things to note:
+% \begin{itemize}
+% \item We might expect to pick up more spurious associations with these data on different pathogens if external factors drive these pathogens into different/shifted seasonal patterns. Our algorithm might pick up different seasonal patterns as evidence of cross-protection. A simulation study could test this out. Enterovirus might be a good example of this, as there might not be a strong biological explanation for why there would be interference between it and a respiratory pathogen.
+% \item In general, we might expect the duration of cross-protection/interference to be shorter between these viruses, and this dataset is shorter than the others, so we have set $k=120$ and $\theta=100$.
+% \item Still to do: generalize code to be able to look at different numbers of interacting pathogens.
+% \item to investigate: impact of changing reporting rates over time on the ability of this metric to detect cross-protection.
+% \end{itemize}
+
+
+<<rsvAnalysis, echo=FALSE, eval=FALSE, fig.cap="Likelihood profile for $\\theta$ in a model for RSV, flu A, flu B, and parainfluenza.", message=FALSE>>=
 rsv_data <- read.csv("/Users/nick/Dropbox/work/research/maskStudy/manuscripts/ALERTv2/dataCleaned/chco.csv")
 rsv_data_subset <- rsv_data[,c("RSV", "Total.Flu.A", "Flu.B", "Paraflu")]
 tmp <- runCrossProtectMemoryAnalysis(data=rsv_data_subset, k=120, 
@@ -181,5 +202,9 @@ tmp <- runCrossProtectMemoryAnalysis(data=rsv_data_subset, k=120,
 
 \section{Discussion}
 We report here results showing the utility of this method for answering simple questions about characteristics that drive the complex dynamics of this system. However, it is possible that memory terms could be used in a wide array of other infectious disease and other modeling contexts.
+
+The simple model that we have used here to demonstrate the utility of this ``memory''-based approximation to susceptibility has many limitations in practice. We make na\:ive and simplifying assumptions about the observation process model (such as assuming that all cases are reported) and the transmission model (such as not including seasonal terms). This has allowed us to run a large number of experimental simulations to test the robustness of the memory term models. However, we do not believe that these limitations are inherent to the memory-based approximations, and are largely a convenience for efficiently demonstrating the utility of the memory term in practice. The memory-term method that we propose here to approximate susceptibility can be adapted into many different modeling frameworks with more robust sets of assumptions.
+
+Despite these limitations, this simple model has demonstrated, many of the cases that we studied, an ability to detect the presence of cross-protection in a multi-pathogen dataset. While the estimates of the duration of cross-protection are biased, the binary classification of "does this dataset exhibit features of cross-protection?" show decent measures of sensitivity and specificity. Additionally, the algorithm runs orders of magnitude faster than models with more detailed specification of the model structure. A more complete understanding and exploration of the trade-offs between model complexity, methodological rigor, and computational intensiveness is needed in this area of research. 
 
 \end{document}
