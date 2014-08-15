@@ -73,7 +73,7 @@ S_{i,t} = \bar S_i \cdot \exp (\gamma M^*_{i,t})
 where $M^*_{i,t}$ is a continuous measure that acts (when exponentiated) as a scaling factor on the mean susceptibility to a particular strain ($\bar S_i$), and $\gamma$ is a coefficient. In other words, values of $\gamma \cdot M^*$ that are greater than zero would indicate higher than average population susceptibility, and vice versa. The model equation \ref{eq:statModel} then becomes:
 \begin{eqnarray}
 \log {\mathbb E}[ X_{i,t}|X_{\cdot,t-1}, S_{i,t-1}] & = & \log\beta_t + \alpha_1 \log X_{i,t-1} + \alpha_2 \left( \log \bar S_{i} + \gamma M^*_{i,t} \right ) \nonumber \\
- & = & \log\beta_t + \alpha_1 \log X_{i,t-1} + \alpha_2 \log \bar S_{i} + \gamma^* M^*_{i,t} \label{eq:fitModel}
+ & = & \log\beta_t + \alpha_1 \log X_{i,t-1} + \alpha_2 \log \bar S_{i} + \gamma^* M^*_{i,t} \label{eq:completeModel}
 \end{eqnarray}
 If we can define an appropriate metric for $M^*$ and use the reported counts in place of the $X_{i,t}$, the above model could be fit using a standard GLM algorithm.
 
@@ -84,7 +84,7 @@ M_{i,t}&=& \sum_{t-k < t'< t} X_{i,t'} + \sum_{j \neq i} \sum_{t-k < t'< t} X_{j
 \end{eqnarray*}
 Then, we can standardize the $M$ terms as 
 $$M^*_{i,t} = \frac{M_{i,t} - \bar M_i}{sd(M_{i,t})}.$$
-These $M^*$ terms could be used in the above model. Note that the $M^*$ depend on the parameter of the exponential distribution, $\theta$. For a fixed $\theta$, we can fit a Poisson GLM to the model in equation \ref{eq:fitModel}. To derive an estimate for the $\theta$ most supported by the data, we could use a grid-search algorithm, that computes the memory terms and fits the model for a range of possible values of $\theta$. This would construct a profile likelihood that could be used to determine the maximum likelihood and a likelihood based confidence interval. Additionally,  we could interpret $e^{\gamma^*}$ as the relative rate between two timepoints that have the same $X_{i,t-1}$ value but where one point has 1 standard deviation greater measure of susceptibility.
+These $M^*$ terms could be used in the above model. Note that the $M^*$ depend on the parameter of the exponential distribution, $\theta$. For a fixed $\theta$, we can fit a Poisson GLM to the model in equation \label{eq:completeModel}. To derive an estimate for the $\theta$ most supported by the data, we could use a grid-search algorithm, that computes the memory terms and fits the model for a range of possible values of $\theta$. This would construct a profile likelihood that could be used to determine the maximum likelihood and a likelihood based confidence interval. Additionally,  we could interpret $e^{\gamma^*}$ as the relative rate between two timepoints that have the same $X_{i,t-1}$ value but where one point has 1 standard deviation greater measure of susceptibility.
 
 
 
@@ -95,48 +95,53 @@ To demonstrate that these memory terms can be effectively used in an infectious 
 In both settings, the model fit to the data was 
 \begin{eqnarray}
 X_{i,t}|\theta, \lambda_{i,t}, k &\sim & Poisson(\lambda_{i,t}|\theta, k) \nonumber \\
-\log \lambda_{i,t} &=& \beta_{1,i} + \beta_2 \log (X_{i,t-1}+1) + \beta_3 M(\theta, k)^*_{i,t}
+\log \lambda_{i,t} &=& \beta_{1,i} + \beta_2 \log (X_{i,t-1}+1) + \beta_3 M(\theta, k)^*_{i,t} \label{eq:fitModel}
 \end{eqnarray}
 where the $X_{i,t}$ are taken as the observed case counts, and the $\theta$ and $k$ parameters are defined as above. The model was fit using the profile-likelihood approach described above, by iteratively fitting a Poisson glm for each value of $\theta$ considered. The code for the data analysis and simulations are available \href{https://github.com/nickreich/pompSandbox/tree/master/memory}{on GitHub}.
 
+We note that a key assumption of the model in (\ref{eq:fitModel}) is that the seasonality between the different strains of disease are the same. With no seasonal term included in this model, it is possible that if seasonal differences did exist between the modeled diseases, they would be ascribed to the ``memory'' term. In this setting, a model for the four serotypes of dengue is appropriate, as there is likely little seasonal variability across these four serotypes of the same disease. However, in other settings, such as with a model looking at cross-protection between different respiratory viruses (e.g. influenza, respiratory syncitial virus, rhinovirus, and adenovirus) including a seasonal term may be necessary to use the memory term model for accurate inference about cross-protection.
+
 \subsection{Analyzing simulated data with pathogen interactions}
 
-From previous work[cite Reich], we have 12,000 simulated datasets from a continuous-time four-strain model across 40 years of biweekly observations. These 12,000 datasets have a factorial design, with 2,000 datasets generated with each of 6 different durations of cross-protection (none, 6 months, 1 year, 1.5 years, 2 years, 3 years) and 6,000 datasets generated with each of 2 different case reporting rates (0.01 and 0.1). Details of these validation datasets have been published elsewhere [cite Reich]. The datasets with reporting rate of 1 in 100 have a mean number of total cases per dataset of about 200,000. The datasets with reporting rate of 1 in 10 have a mean number of total cases per dataset of about 2 million. %Our actual dataset, therefore, corresponds roughly to a simulated dataset from this system with reporting rate of 1 in 1,000 or 0.001.  
+From previous work[cite Reich], we have 6,000 simulated datasets from a continuous-time four-strain model across 40 years of biweekly observations. These 6,000 datasets represent 1,000 datasets each generated with one of 6 different durations of cross-protection (none, 6 months, 1 year, 1.5 years, 2 years, 3 years). Details of these validation datasets have been published elsewhere [cite Reich and Shrestha]. These datasets contain about 20 million reported cases each, although in our simulations we assumed only small fractions of all cases were reported. % The datasets with reporting rate of 1 in 100 have a mean number of total cases per dataset of about 200,000. The datasets with reporting rate of 1 in 10 have a mean number of total cases per dataset of about 2 million. %Our actual dataset, therefore, corresponds roughly to a simulated dataset from this system with reporting rate of 1 in 1,000 or 0.001.  
 
-To test the sensitivity of the proposed method, we ran several experiments using these simulated datasets. In particular, we were interested in evaluating how well this memory model method can detect the existence of cross-protection. We say that the method "detects" cross-protection in a dataset if the 95\% confidence interval for $\theta$ does not cover zero. Using the simulated datasets, we can evaluate the sensitivity and specificity of this method in detecting cross-protection. Specifically, we would like to evaluate this method's performance in across a range of different reporting rates (i.e. at different scales of case counts in the data set) and when the reporting rates are changing across time.
+To test the proposed approximation and its use in the above model, we ran several experiments using these simulated datasets. In particular, we were interested in evaluating how well this memory model method can detect the existence of cross-protection. We said that the method "detected" cross-protection in a dataset if the 95\% confidence interval for $\theta$ did not cover zero. Using the simulated datasets, we evaluated the sensitivity and specificity of this method in detecting cross-protection. In addition to looking at how the detection changed across true durations of cross-protection, we also evaluated this method's performance across a range of different case reporting rates (i.e. at different scales of case counts in the data set) and when the reporting rates were changing over time.
 
+[[Detailed simulation results to come]]
 
-I fit the model above for a fixed $k=300$ and for $\theta = 1, 2, ..., 104$ (i.e. for cross-protection values of up to 4 years). For each sequence of 104 models, across the different values of $\theta$, the model with the highest log-likelhood value was chosen and the results reported here.
-
-We can see from Figure \ref{fig:boxplot} shows that the estimated $\hat\theta$ values increase as the true value of $\theta$ increases. The median values of $\hat\theta$ appear to be higher than the true values of $\theta$, a difference that is more pronounced for smaller true values of $\theta$.
-
-<<boxplotThetas, echo=FALSE, fig.cap="estimated $\\hat\\theta$ (y-axis, in biweeks) and the known true value of $\\theta$ (x-axis) faceted by the reported fraction of cases">>=
-setwd('~/Documents/code_versioned/pompSandbox/memory/')
-results <- read.csv("simResults_20140522.csv")
-results <- as.data.frame(results)
-results$trueLambda <- 26/results$delta
-results$thetaFac <- factor(results$trueLambda, labels=c("1 d", "6 mo", "1 yr", "1.5 yrs", "2 yrs", "3 yrs"))
-qplot(thetaFac, lambda, data=results, geom="boxplot", facets=.~rho) + 
-        ylab(expression(hat(theta))) + xlab(expression(theta))
-@
-
-<<boxplotBetaMs, echo=FALSE, fig.cap="estimated $\\hat\\beta_3$ (y-axis) and the known true value of $\\theta$ (x-axis) faceted by the reported fraction of cases">>=
-qplot(thetaFac, beta_M, data=results, geom="boxplot", facets=.~rho) + 
-        ylab(expression(hat(beta)[3])) + xlab(expression(theta)) + ylim(-1, 1)
-@
-
-The confidence interval coverage is terrible (i.e. less than 50\%) and the ``estimates'' of $\theta$ are also quite poor, often showing 50\% bias or greater. So this algorithm clearly has shortcomings if one is trying to draw specific inference about the duration of cross-protection, but it does appear that we could use it to evaluate whether cross-protection exists within a given system.
-<<cpPresentTable, echo=FALSE>>=
-results$cpPresent <- results$lambda_ci_low>1
-presentTable <- round(with(results, table(thetaFac, cpPresent))/20,1)
-@
-
-If we classify each dataset as either having or not having cross-protection based on whether the 95\% confidence interval for $\theta$ (based on $\chi^2$ likelihood ratio confidence intervals) includes zero, this turns out to serve as a fairly good classification rule. In particular, Table \ref{tab:present} shows that our sensitivity (the probability of correctly classifying a dataset that was generated with cross-protection as having cross-protection) ranges from between \Sexpr{min(presentTable[2:6,2])} to \Sexpr{max(presentTable[2:6,2])}, and in increases as the true duration of cross-protection lengthens. Similarly, our specificity (the probability of correctly classifying a dataset that was generated with no cross-protection) is \Sexpr{presentTable[1,1]}. The sensitivity and specificity of our previously published model on these same datasets were 100\% and 77\%, respectively.
-
-<<printTable, echo=FALSE, results='asis', message=FALSE, >>=
-require(xtable)
-xtable(presentTable, caption="Percent of datasets classified as having cross-protection (TRUE) or not (FALSE), by the true duration of cross-protection.", digits=1, label="tab:present")
-@
+% 
+% 
+% I fit the model above for a fixed $k=300$ and for $\theta = 1, 2, ..., 104$ (i.e. for cross-protection values of up to 4 years). For each sequence of 104 models, across the different values of $\theta$, the model with the highest log-likelhood value was chosen and the results reported here.
+% 
+% We can see from Figure \ref{fig:boxplot} shows that the estimated $\hat\theta$ values increase as the true value of $\theta$ increases. The median values of $\hat\theta$ appear to be higher than the true values of $\theta$, a difference that is more pronounced for smaller true values of $\theta$.
+% 
+% <<boxplotThetas, echo=FALSE, fig.cap="estimated $\\hat\\theta$ (y-axis, in biweeks) and the known true value of $\\theta$ (x-axis) faceted by the reported fraction of cases">>=
+% setwd('~/Documents/code_versioned/pompSandbox/memory/')
+% results <- read.csv("simResults_20140522.csv")
+% results <- as.data.frame(results)
+% results$trueLambda <- 26/results$delta
+% results$thetaFac <- factor(results$trueLambda, labels=c("1 d", "6 mo", "1 yr", "1.5 yrs", "2 yrs", "3 yrs"))
+% qplot(thetaFac, lambda, data=results, geom="boxplot", facets=.~rho) + 
+%         ylab(expression(hat(theta))) + xlab(expression(theta))
+% @
+% 
+% <<boxplotBetaMs, echo=FALSE, fig.cap="estimated $\\hat\\beta_3$ (y-axis) and the known true value of $\\theta$ (x-axis) faceted by the reported fraction of cases">>=
+% qplot(thetaFac, beta_M, data=results, geom="boxplot", facets=.~rho) + 
+%         ylab(expression(hat(beta)[3])) + xlab(expression(theta)) + ylim(-1, 1)
+% @
+% 
+% The confidence interval coverage is terrible (i.e. less than 50\%) and the ``estimates'' of $\theta$ are also quite poor, often showing 50\% bias or greater. So this algorithm clearly has shortcomings if one is trying to draw specific inference about the duration of cross-protection, but it does appear that we could use it to evaluate whether cross-protection exists within a given system.
+% <<cpPresentTable, echo=FALSE>>=
+% results$cpPresent <- results$lambda_ci_low>1
+% presentTable <- round(with(results, table(thetaFac, cpPresent))/20,1)
+% @
+% 
+% If we classify each dataset as either having or not having cross-protection based on whether the 95\% confidence interval for $\theta$ (based on $\chi^2$ likelihood ratio confidence intervals) includes zero, this turns out to serve as a fairly good classification rule. In particular, Table \ref{tab:present} shows that our sensitivity (the probability of correctly classifying a dataset that was generated with cross-protection as having cross-protection) ranges from between \Sexpr{min(presentTable[2:6,2])} to \Sexpr{max(presentTable[2:6,2])}, and in increases as the true duration of cross-protection lengthens. Similarly, our specificity (the probability of correctly classifying a dataset that was generated with no cross-protection) is \Sexpr{presentTable[1,1]}. The sensitivity and specificity of our previously published model on these same datasets were 100\% and 77\%, respectively.
+% 
+% <<printTable, echo=FALSE, results='asis', message=FALSE, >>=
+% require(xtable)
+% xtable(presentTable, caption="Percent of datasets classified as having cross-protection (TRUE) or not (FALSE), by the true duration of cross-protection.", digits=1, label="tab:present")
+% @
 
 \subsection{Cross-protection between serotypes of dengue}
 
@@ -176,7 +181,7 @@ tmp <- runCrossProtectMemoryAnalysis(data=ready_data[ready_data$date>1985, 4:7],
                                      plot=TRUE, verbose=FALSE)
 @
 
-We fitted the model from equation \ref{eq:fitModel} above, to the four-serotype dengue dataset from Queen Sirikit. Using $k$=\Sexpr{k} and setting $\theta$ to be at most \Sexpr{max_theta} years (\Sexpr{max_theta*26} biweeks), we find that the maximum likelihood estimate for the duration of cross-protection is $\hat\theta = $\Sexpr{round(tmp["lambda"])} biweeks, with a 95\% CI of (\Sexpr{round(tmp["lambda_ci_low"])}, \Sexpr{round(tmp["lambda_ci_high"])}). Overall, there is not strong evidence for cross-protection based on this analysis. Figure \ref{fig:dengue} shows the likelihood profile across examined values of $\theta$. 
+We fitted the model from equation \label{eq:completeModel} above, to the four-serotype dengue dataset from Queen Sirikit. Using $k$=\Sexpr{k} and setting $\theta$ to be at most \Sexpr{max_theta} years (\Sexpr{max_theta*26} biweeks), we find that the maximum likelihood estimate for the duration of cross-protection is $\hat\theta = $\Sexpr{round(tmp["lambda"])} biweeks, with a 95\% CI of (\Sexpr{round(tmp["lambda_ci_low"])}, \Sexpr{round(tmp["lambda_ci_high"])}). Overall, there is not strong evidence for cross-protection based on this analysis. Figure \ref{fig:dengue} shows the likelihood profile across examined values of $\theta$. 
 
 
 
@@ -205,6 +210,6 @@ We report here results showing the utility of this method for answering simple q
 
 The simple model that we have used here to demonstrate the utility of this ``memory''-based approximation to susceptibility has many limitations in practice. We make na\:ive and simplifying assumptions about the observation process model (such as assuming that all cases are reported) and the transmission model (such as not including seasonal terms). This has allowed us to run a large number of experimental simulations to test the robustness of the memory term models. However, we do not believe that these limitations are inherent to the memory-based approximations, and are largely a convenience for efficiently demonstrating the utility of the memory term in practice. The memory-term method that we propose here to approximate susceptibility can be adapted into many different modeling frameworks with more robust sets of assumptions.
 
-Despite these limitations, this simple model has demonstrated, many of the cases that we studied, an ability to detect the presence of cross-protection in a multi-pathogen dataset. While the estimates of the duration of cross-protection are biased, the binary classification of "does this dataset exhibit features of cross-protection?" show decent measures of sensitivity and specificity. Additionally, the algorithm runs orders of magnitude faster than models with more detailed specification of the model structure. A more complete understanding and exploration of the trade-offs between model complexity, methodological rigor, and computational intensiveness is needed in this area of research. 
+Despite these limitations, this simple model has demonstrated, across many of the cases that we studied, an ability to detect the presence of cross-protection in a multi-pathogen dataset. While the estimates of the duration of cross-protection show (in some cases significant) bias, the binary classification of "does this dataset exhibit features of cross-protection?" show acceptable measures of sensitivity and specificity in many settings. Additionally, the algorithm runs orders of magnitude faster than models with more detailed specification of the model structure. A more complete understanding and exploration of the trade-offs between model complexity, methodological rigor, and computational intensiveness is called for in this area of research. 
 
 \end{document}
