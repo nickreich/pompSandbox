@@ -61,6 +61,8 @@ where the $\beta_t$ coefficients represent the seasonal baselines, i.e. $\beta_t
 
 For the purposes of developing a simple model to demonstrate the proof-of-principle for our new susceptible approximation, we largely ignore the reporting process and assume that $Y_{i,t}$ can be used in place of $X_{i,t}$. This is equivalent to assuming that all cases are reported or to assuming that not all cases are reported but the reporting rate is constant across time. In the latter of these two assumptions, the reporting rate cancels out on both sides of equation \ref{eq:transMod}.
 
+[[state assumption of common seasonality between all strains]]
+
 Setting aside the complexities associated with an observation process or reporting model, we focus our attention on developing an approximation to $S_{i,t}$.
 
 \subsection{An approximation to susceptibility}
@@ -146,6 +148,7 @@ To test the proposed approximation and its use in the above model, we ran severa
 \subsection{Cross-protection between serotypes of dengue}
 
 <<echo=FALSE, message=FALSE>>=
+setwd('memory/')
 source('fourStrainMemory.R')
 library(reshape2)
 library(ggplot2)
